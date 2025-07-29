@@ -61,11 +61,15 @@
     .hidden {
       display: none;
     }
+    .error {
+      color: #ff6b6b;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div id="initialView">
+    <div id="initialView" class="hidden">
       <h2>Discord Doğrulama</h2>
       <p>Sunucumuza giriş yapmak için Discord hesabınızla bağlantı kurun</p>
       <a id="loginBtn" class="btn">Discord ile Bağlan</a>
@@ -74,6 +78,12 @@
     <div id="loadingView" class="hidden">
       <div class="loading"></div>
       <p>Doğrulama yapılıyor...</p>
+    </div>
+    
+    <div id="errorView" class="hidden">
+      <h2>VPN Tespit Edildi</h2>
+      <p class="error">VPN/proxy kullanımı tespit edildi. Sunucumuza giriş yapabilmek için VPN/proxy kullanmadan bağlanmalısınız.</p>
+      <button id="retryBtn" class="btn">Tekrar Dene</button>
     </div>
   </div>
 
@@ -90,10 +100,44 @@
     // Elementler
     const initialView = document.getElementById('initialView');
     const loadingView = document.getElementById('loadingView');
+    const errorView = document.getElementById('errorView');
     const loginBtn = document.getElementById('loginBtn');
+    const retryBtn = document.getElementById('retryBtn');
 
     // OAuth URL'yi ayarla
     loginBtn.href = `https://discord.com/oauth2/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&scope=${config.scope}`;
+
+    // Sayfa yüklendiğinde doğrudan işlemi başlat
+    document.addEventListener('DOMContentLoaded', async () => {
+      showView(loadingView);
+      
+      try {
+        // 1. IP adresini ve VPN kontrolü yap
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipResponse.json();
+        const ipAddress = ipData.ip;
+        
+        // VPN kontrolü için ek API
+        const vpnCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+        const vpnData = await vpnCheck.json();
+        
+        // VPN/Proxy kontrolü
+        if (vpnData.proxy || vpnData.vpn || vpnData.tor) {
+          throw new Error('VPN/Proxy kullanımı tespit edildi');
+        }
+        
+        // 2. Doğrudan Discord OAuth'a yönlendir
+        window.location.href = loginBtn.href;
+        
+      } catch (error) {
+        console.error('Hata:', error);
+        if (error.message.includes('VPN/Proxy')) {
+          showView(errorView);
+        } else {
+          showView(initialView);
+        }
+      }
+    });
 
     // URL'den code parametresini kontrol et
     const params = new URLSearchParams(window.location.search);
@@ -103,16 +147,30 @@
       verifyUser(code);
     }
 
+    // Tekrar dene butonu
+    retryBtn.addEventListener('click', () => {
+      window.location.reload();
+    });
+
     async function verifyUser(code) {
       showView(loadingView);
       
       try {
-        // 1. IP adresini al
+        // 1. IP adresini al ve VPN kontrolü yap
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
         const ipAddress = ipData.ip;
+        
+        // VPN kontrolü için ek API
+        const vpnCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+        const vpnData = await vpnCheck.json();
+        
+        // VPN/Proxy kontrolü
+        if (vpnData.proxy || vpnData.vpn || vpnData.tor) {
+          throw new Error('VPN/Proxy kullanımı tespit edildi');
+        }
 
-        // 2. Discord'dan token al (artık proxy kullanmıyoruz)
+        // 2. Discord'dan token al
         const formData = new URLSearchParams();
         formData.append('client_id', config.clientId);
         formData.append('client_secret', "XwMSoMkHCF0_D9fnTQy7JlfX7mVOpwP4");
@@ -150,8 +208,12 @@
 
       } catch (error) {
         console.error('Doğrulama hatası:', error);
-        alert(`Doğrulama başarısız: ${error.message}`);
-        window.location.href = config.redirectUri.split('?')[0];
+        if (error.message.includes('VPN/Proxy')) {
+          showView(errorView);
+        } else {
+          alert(`Doğrulama başarısız: ${error.message}`);
+          showView(initialView);
+        }
       }
     }
 
@@ -188,6 +250,7 @@
     function showView(view) {
       initialView.classList.add('hidden');
       loadingView.classList.add('hidden');
+      errorView.classList.add('hidden');
       view.classList.remove('hidden');
     }
   </script>
